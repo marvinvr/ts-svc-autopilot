@@ -4,39 +4,98 @@ Automatically expose Docker containers as Tailscale Services using label-based c
 
 ## Quick Start
 
+### Admin Console Setup
+
+Before installing the autopilot, configure your Tailscale admin console at https://login.tailscale.com/admin/services:
+
+1. **Create service definitions** (Services → Add service):
+   - Create a service for each application you want to expose
+   - Example: Service name `web`, `api`, `db`, etc.
+   - Note: The autopilot will automatically configure and advertise these services
+
+2. **(Optional) Configure service tags**:
+   - Navigate to Access Controls
+   - Add tags for service identification (e.g., `tag:homelab-service`)
+   - Tag your Docker host (e.g., `tag:homelab`)
+
+3. **(Recommended) Enable auto-approval**:
+   - Navigate to Access Controls and edit your ACL policy
+   - Add auto-approvers to skip manual approval for service advertisements:
+   ```json
+   {
+     "autoApprovers": {
+       "services": {
+         "tag:homelab-service": ["tag:homelab"]
+       }
+     }
+   }
+   ```
+   - This allows devices tagged `tag:homelab` to automatically advertise services tagged `tag:homelab-service`
+
+See [Tailscale Services documentation](https://tailscale.com/kb/1552/tailscale-services) for detailed setup instructions.
+
 ### Prerequisites
 
 1. Tailscale installed and authenticated on your Docker host
 2. Host must have a tag-based identity (not user-based)
 3. Docker daemon running with API socket exposed
-4. (Recommended) Auto-approval ACL policies configured in your Tailscale admin console
+4. Services created in Tailscale admin console (see above)
 
 ### Installation
 
-1. Clone this repository:
-```bash
-git clone https://github.com/marvinvr/ts-svc-autopilot
-cd ts-svc-autopilot
+#### Option 1: Docker Compose
+
+Create a `docker-compose.yaml`:
+
+```yaml
+version: '3.8'
+
+services:
+  ts-svc-autopilot:
+    image: ghcr.io/marvinvr/ts-svc-autopilot:latest
+    container_name: ts-svc-autopilot
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/tailscale/tailscaled.sock:/var/run/tailscale/tailscaled.sock
+    environment:
+      - LOG_LEVEL=info
+      - RECONCILE_INTERVAL=60s
 ```
 
-2. Start the services:
+Start the service:
 ```bash
 docker compose up -d
 ```
 
-3. Check the logs:
+#### Option 2: Docker Run
+
+```bash
+docker run -d \
+  --name ts-svc-autopilot \
+  --restart unless-stopped \
+  -v /var/run/docker.sock:/var/run/docker.sock:ro \
+  -v /var/run/tailscale/tailscaled.sock:/var/run/tailscale/tailscaled.sock \
+  -e LOG_LEVEL=info \
+  -e RECONCILE_INTERVAL=60s \
+  ghcr.io/marvinvr/ts-svc-autopilot:latest
+```
+
+#### Verify Installation
+
+Check the logs:
 ```bash
 docker logs -f ts-svc-autopilot
 ```
 
-4. Verify services are advertised:
+Verify services are advertised:
 ```bash
 tailscale serve status --json
 ```
 
 ### Usage
 
-**🚨 CRITICAL:** Container ports MUST be published to host. Tailscale serve only supports `localhost` proxies.
+**🚨 CRITICAL:** Container ports MUST be published to host. Tailscale serve only supports `localhost` proxies. This is a technical limitation of Tailscale.
 
 ```yaml
 services:
@@ -47,9 +106,9 @@ services:
     labels:
       - "ts-svc.enable=true"
       - "ts-svc.service=myapp"
-      - "ts-svc.port=443"                  # Port on Tailscale (default: 80)
+#     - "ts-svc.port=443"                  # Port on Tailscale (default: 80)
       - "ts-svc.target=80"                 # CONTAINER port (RIGHT side of "9080:80")
-      - "ts-svc.target-protocol=https"     # Protocol (default: http)
+#     - "ts-svc.target-protocol=http"     # Protocol (default: http)
 ```
 
 **Port Mapping Rules:**
@@ -59,7 +118,7 @@ services:
 
 Access from any device in your tailnet:
 ```bash
-curl https://myapp.your-tailnet.ts.net
+curl http://myapp.your-tailnet.ts.net
 ```
 
 ### Available Labels
@@ -102,32 +161,32 @@ curl https://myapp.your-tailnet.ts.net
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                     Docker Host                          │
-│                                                          │
+┌────────────────────────────────────────────────────────┐
+│                     Docker Host                        │
+│                                                        │
 │  ┌──────────────────┐         ┌──────────────────┐     │
 │  │  ts-svc-autopilot│────────▶│ Tailscale Daemon │     │
 │  │   (Container)    │  CLI    │   (Host Process) │     │
 │  └────────┬─────────┘         └────────┬─────────┘     │
-│           │                             │                │
-│           │ Docker Socket               │ Proxies to    │
-│           │ Monitoring                  │ localhost     │
-│           ▼                             ▼                │
+│           │                            │               │
+│           │ Docker Socket              │ Proxies to    │
+│           │ Monitoring                 │ localhost     │
+│           ▼                            ▼               │
 │  ┌──────────────────┐         ┌──────────────────┐     │
 │  │   App Container  │◀────────│  localhost:9080  │     │
 │  │   Port 80        │  Mapped │  localhost:9081  │     │
 │  │  ports: 9080:80  │◀────────│                  │     │
 │  └──────────────────┘         └──────────────────┘     │
-│                                                          │
-└─────────────────────────────────────────────────────────┘
+│                                                        │
+└────────────────────────────────────────────────────────┘
                          │
                          │ Tailscale Network
                          ▼
-              ┌────────────────────┐
-              │  Tailnet Clients   │
-              │  Access services:  │
-              │  web.tailnet.ts.net│
-              └────────────────────┘
+              ┌─────────────────────┐
+              │  Tailnet Clients    │
+              │  Access services:   │
+              │  web.tailnet.ts.net │
+              └─────────────────────┘
 
 Flow: Tailscale → localhost:9080 → Container:80
 ```
@@ -145,9 +204,7 @@ services:
     labels:
       - "ts-svc.enable=true"
       - "ts-svc.service=web"
-      - "ts-svc.port=443"              # Tailscale port (default: 80)
       - "ts-svc.target=80"             # CONTAINER port (right side)
-      - "ts-svc.target-protocol=https" # Protocol (default: http)
 ```
 
 ### Database
@@ -196,15 +253,6 @@ docker build -t ts-svc-autopilot:latest .
 # Run locally
 ./ts-svc-autopilot
 ```
-
-## Documentation
-
-See [CLAUDE.md](CLAUDE.md) for detailed project documentation including:
-- Tailscale Services overview
-- Complete architecture details
-- Implementation details
-- Advanced configuration
-- Troubleshooting
 
 ## Links
 
