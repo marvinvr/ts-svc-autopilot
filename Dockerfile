@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.23-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /build
 
@@ -27,12 +27,5 @@ WORKDIR /app
 
 # Copy binary from build stage
 COPY --from=builder /build/ts-svc-autopilot .
-
-# Run as non-root user
-RUN addgroup -g 1000 autopilot && \
-    adduser -D -u 1000 -G autopilot autopilot && \
-    chown -R autopilot:autopilot /app
-
-USER autopilot
 
 ENTRYPOINT ["/app/ts-svc-autopilot"]
