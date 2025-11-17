@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-w -s' -o ts-svc-autopilot .
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-w -s' -o docktail .
 
 # Runtime stage
 FROM alpine:latest
@@ -26,6 +26,6 @@ RUN apk add --no-cache ca-certificates iptables ip6tables && \
 WORKDIR /app
 
 # Copy binary from build stage
-COPY --from=builder /build/ts-svc-autopilot .
+COPY --from=builder /build/docktail .
 
-ENTRYPOINT ["/bin/sh", "-c", "sleep 1 && exec /app/ts-svc-autopilot"]
+ENTRYPOINT ["/bin/sh", "-c", "sleep 1 && exec /app/docktail"]

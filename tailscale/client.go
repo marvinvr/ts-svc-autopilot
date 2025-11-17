@@ -10,7 +10,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	apptypes "github.com/marvinvr/ts-svc-autopilot/types"
+	apptypes "github.com/marvinvr/docktail/types"
 )
 
 // Client handles Tailscale CLI interactions

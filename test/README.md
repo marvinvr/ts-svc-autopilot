@@ -1,6 +1,6 @@
 # Test Containers
 
-This directory contains test nginx containers for demonstrating ts-svc-autopilot functionality.
+This directory contains test nginx containers for demonstrating DockTail functionality.
 
 ## Contents
 

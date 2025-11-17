@@ -7,9 +7,9 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/marvinvr/ts-svc-autopilot/docker"
-	"github.com/marvinvr/ts-svc-autopilot/tailscale"
-	apptypes "github.com/marvinvr/ts-svc-autopilot/types"
+	"github.com/marvinvr/docktail/docker"
+	"github.com/marvinvr/docktail/tailscale"
+	apptypes "github.com/marvinvr/docktail/types"
 )
 
 // Reconciler manages the reconciliation loop

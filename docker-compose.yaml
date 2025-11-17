@@ -1,10 +1,10 @@
 version: '3.8'
 
 services:
-  # ts-svc-autopilot service
-  ts-svc-autopilot:
+  # DockTail service
+  docktail:
     build: .
-    container_name: ts-svc-autopilot
+    container_name: docktail
     restart: unless-stopped
     volumes:
       # Docker socket for container monitoring
@@ -25,11 +25,11 @@ services:
     ports:
       - "9080:80"  # HOST:CONTAINER - Publish container's port 80 to host's port 9080
     labels:
-      - "ts-svc.enable=true"
-      - "ts-svc.name=test-web1"
-      - "ts-svc.service-port=80"  # Port to expose on Tailscale
-      - "ts-svc.port=80"          # CONTAINER port (RIGHT side of "9080:80" above)
-      - "ts-svc.protocol=http"    # http (not https) - nginx listens on plain HTTP
+      - "docktail.service.enable=true"
+      - "docktail.service.name=test-web1"
+      - "docktail.service.service-port=80"  # Port to expose on Tailscale
+      - "docktail.service.port=80"          # CONTAINER port (RIGHT side of "9080:80" above)
+      - "docktail.service.protocol=http"    # http (not https) - nginx listens on plain HTTP
 
   # Example web application - nginx instance 2
   web2:
@@ -39,9 +39,9 @@ services:
     ports:
       - "9081:80"  # HOST:CONTAINER - Publish container's port 80 to host's port 9081
     labels:
-      - "ts-svc.enable=true"
-      - "ts-svc.name=test-web2"
-      - "ts-svc.port=80"  # CONTAINER port (RIGHT side of "9081:80" above)
+      - "docktail.service.enable=true"
+      - "docktail.service.name=test-web2"
+      - "docktail.service.port=80"  # CONTAINER port (RIGHT side of "9081:80" above)
 
 volumes:
   postgres-data:

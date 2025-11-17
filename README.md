@@ -1,4 +1,6 @@
-# Service Autopilot for Tailscale
+# 🍸 DockTail
+
+**Unleash your Containers as Tailscale Services**
 
 Automatically expose Docker containers as Tailscale Services using label-based configuration - zero-config service mesh for your dockerized services.
 
@@ -51,9 +53,9 @@ Create a `docker-compose.yaml`:
 version: '3.8'
 
 services:
-  ts-svc-autopilot:
-    image: ghcr.io/marvinvr/ts-svc-autopilot:latest
-    container_name: ts-svc-autopilot
+  docktail:
+    image: ghcr.io/marvinvr/docktail:latest
+    container_name: docktail
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -72,20 +74,20 @@ docker compose up -d
 
 ```bash
 docker run -d \
-  --name ts-svc-autopilot \
+  --name docktail \
   --restart unless-stopped \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
   -v /var/run/tailscale/tailscaled.sock:/var/run/tailscale/tailscaled.sock \
   -e LOG_LEVEL=info \
   -e RECONCILE_INTERVAL=60s \
-  ghcr.io/marvinvr/ts-svc-autopilot:latest
+  ghcr.io/marvinvr/docktail:latest
 ```
 
 #### Verify Installation
 
 Check the logs:
 ```bash
-docker logs -f ts-svc-autopilot
+docker logs -f docktail
 ```
 
 Verify services are advertised:
@@ -105,9 +107,9 @@ services:
     ports:
       - "8080:80"  # REQUIRED! HOST:CONTAINER format
     labels:
-      - "ts-svc.enable=true"
-      - "ts-svc.name=myapp"
-      - "ts-svc.port=80"  # CONTAINER port (RIGHT side of "8080:80")
+      - "docktail.service.enable=true"
+      - "docktail.service.name=myapp"
+      - "docktail.service.port=80"  # CONTAINER port (RIGHT side of "8080:80")
 ```
 
 Access from any device in your tailnet:
@@ -123,29 +125,29 @@ services:
     ports:
       - "8080:80"
     labels:
-      - "ts-svc.enable=true"
-      - "ts-svc.name=myapp"
-      - "ts-svc.port=80"
-      - "ts-svc.service-port=443"  # Port on Tailscale (default: 80)
-      - "ts-svc.protocol=https"    # Protocol (default: http)
+      - "docktail.service.enable=true"
+      - "docktail.service.name=myapp"
+      - "docktail.service.port=80"
+      - "docktail.service.service-port=443"  # Port on Tailscale (default: 80)
+      - "docktail.service.protocol=https"    # Protocol (default: http)
 ```
 
 **Port Mapping Rules:**
 - `ports:` = `"HOST:CONTAINER"` (e.g., `"8080:80"` = host 8080 → container 80)
-- `ts-svc.port` = CONTAINER port (always the RIGHT side)
+- `docktail.service.port` = CONTAINER port (always the RIGHT side)
 - Result: Tailscale → localhost:8080 → Container:80
 
 ### Available Labels
 
 | Label | Required | Default | Description |
 |-------|----------|---------|-------------|
-| `ts-svc.enable` | Yes | - | Enable autopilot for container |
-| `ts-svc.name` | Yes | - | Service name (e.g., `web`, `api-v2`) |
-| `ts-svc.port` | Yes | - | **CONTAINER** port (RIGHT side of `ports:`) |
-| `ts-svc.service-port` | No | `80` | Port exposed on Tailscale |
-| `ts-svc.protocol` | No | `http` | Protocol: `http`, `https`, `tcp`, `tls-terminated-tcp` |
+| `docktail.service.enable` | Yes | - | Enable DockTail for container |
+| `docktail.service.name` | Yes | - | Service name (e.g., `web`, `api-v2`) |
+| `docktail.service.port` | Yes | - | **CONTAINER** port (RIGHT side of `ports:`) |
+| `docktail.service.service-port` | No | `80` | Port exposed on Tailscale |
+| `docktail.service.protocol` | No | `http` | Protocol: `http`, `https`, `tcp`, `tls-terminated-tcp` |
 
-**Critical:** If `ports: "9080:80"`, then `ts-svc.port=80` (container port, NOT 9080)
+**Critical:** If `ports: "9080:80"`, then `docktail.service.port=80` (container port, NOT 9080)
 
 ### Supported Protocols
 
@@ -179,7 +181,7 @@ services:
 │                     Docker Host                        │
 │                                                        │
 │  ┌──────────────────┐         ┌──────────────────┐     │
-│  │  ts-svc-autopilot│────────▶│ Tailscale Daemon │     │
+│  │     DockTail     │────────▶│ Tailscale Daemon │     │
 │  │   (Container)    │  CLI    │   (Host Process) │     │
 │  └────────┬─────────┘         └────────┬─────────┘     │
 │           │                            │               │
@@ -216,9 +218,9 @@ services:
     ports:
       - "8080:80"
     labels:
-      - "ts-svc.enable=true"
-      - "ts-svc.name=web"
-      - "ts-svc.port=80"
+      - "docktail.service.enable=true"
+      - "docktail.service.name=web"
+      - "docktail.service.port=80"
 ```
 
 ### Database (Custom Port & Protocol)
@@ -232,11 +234,11 @@ services:
     environment:
       POSTGRES_PASSWORD: secret
     labels:
-      - "ts-svc.enable=true"
-      - "ts-svc.name=db"
-      - "ts-svc.port=5432"
-      - "ts-svc.service-port=5432"
-      - "ts-svc.protocol=tcp"
+      - "docktail.service.enable=true"
+      - "docktail.service.name=db"
+      - "docktail.service.port=5432"
+      - "docktail.service.service-port=5432"
+      - "docktail.service.protocol=tcp"
 ```
 
 ### API (Different Ports)
@@ -248,24 +250,24 @@ services:
     ports:
       - "8080:3000"
     labels:
-      - "ts-svc.enable=true"
-      - "ts-svc.name=api"
-      - "ts-svc.port=3000"
-      - "ts-svc.service-port=443"
-      - "ts-svc.protocol=https"
+      - "docktail.service.enable=true"
+      - "docktail.service.name=api"
+      - "docktail.service.port=3000"
+      - "docktail.service.service-port=443"
+      - "docktail.service.protocol=https"
 ```
 
 ## Building from Source
 
 ```bash
 # Build binary
-go build -o ts-svc-autopilot .
+go build -o docktail .
 
 # Build Docker image
-docker build -t ts-svc-autopilot:latest .
+docker build -t docktail:latest .
 
 # Run locally
-./ts-svc-autopilot
+./docktail
 ```
 
 ## Links

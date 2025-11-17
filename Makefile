@@ -1,8 +1,8 @@
 .PHONY: build run clean docker-build docker-push test fmt vet
 
 # Variables
-BINARY_NAME=ts-svc-autopilot
-DOCKER_IMAGE=ghcr.io/marvinvr/ts-svc-autopilot
+BINARY_NAME=docktail
+DOCKER_IMAGE=ghcr.io/marvinvr/docktail
 VERSION?=latest
 
 # Build the binary
@@ -63,4 +63,4 @@ down:
 
 # View logs
 logs:
-	docker logs -f ts-svc-autopilot
+	docker logs -f docktail

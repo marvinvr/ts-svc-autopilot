@@ -1,4 +1,4 @@
-module github.com/marvinvr/ts-svc-autopilot
+module github.com/marvinvr/docktail
 
 go 1.25.1
 

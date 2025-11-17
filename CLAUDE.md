@@ -1,4 +1,6 @@
-# ts-svc-autopilot
+# DockTail
+
+**Unleash every container in your homelab as a Tailscale Service**
 
 Automatically expose Docker containers as Tailscale Services using label-based configuration - zero-config service mesh for your homelab.
 
@@ -13,16 +15,16 @@ services:
     ports:
       - "9080:80"  # ← REQUIRED! Format is HOST:CONTAINER
     labels:
-      - "ts-svc.enable=true"
-      - "ts-svc.name=myapp"
-      - "ts-svc.port=80"           # ← CONTAINER port (RIGHT side of "9080:80")
-      - "ts-svc.service-port=443"  # Optional: Port on Tailscale (default: 80)
-      - "ts-svc.protocol=https"    # Optional: Protocol (default: http)
+      - "docktail.service.enable=true"
+      - "docktail.service.name=myapp"
+      - "docktail.service.port=80"           # ← CONTAINER port (RIGHT side of "9080:80")
+      - "docktail.service.service-port=443"  # Optional: Port on Tailscale (default: 80)
+      - "docktail.service.protocol=https"    # Optional: Protocol (default: http)
 ```
 
 **Port Label Guide:**
 - **`ports:`** = `"HOST:CONTAINER"` (Docker format: `"9080:80"` means host 9080 → container 80)
-- **`ts-svc.port`** = CONTAINER port (always the RIGHT side of the mapping)
+- **`docktail.service.port`** = CONTAINER port (always the RIGHT side of the mapping)
 - **Result:** Tailscale → `localhost:9080` → Container:80
 
 ## What is Tailscale Services?
@@ -53,7 +55,7 @@ This is tedious, error-prone, and doesn't scale well for homelabs with many serv
 
 ## The Solution
 
-**ts-svc-autopilot** watches your Docker daemon and automatically manages Tailscale Services based on container labels - similar to how Traefik discovers services.
+**DockTail** watches your Docker daemon and automatically manages Tailscale Services based on container labels - similar to how Traefik discovers services.
 
 **Just add labels to your containers and publish their ports:**
 ```yaml
@@ -63,19 +65,19 @@ services:
     ports:
       - "8080:80"  # REQUIRED: HOST:CONTAINER format - Publish container port to host
     labels:
-      - "ts-svc.enable=true"
-      - "ts-svc.name=web"
-      - "ts-svc.port=80"           # CONTAINER port (RIGHT side of "8080:80")
-      - "ts-svc.service-port=443"  # Port to expose on Tailscale (default: 80)
-      - "ts-svc.protocol=http"     # Protocol (default: http)
+      - "docktail.service.enable=true"
+      - "docktail.service.name=web"
+      - "docktail.service.port=80"           # CONTAINER port (RIGHT side of "8080:80")
+      - "docktail.service.service-port=443"  # Port to expose on Tailscale (default: 80)
+      - "docktail.service.protocol=http"     # Protocol (default: http)
 ```
 
 **IMPORTANT PORT MAPPING RULES:**
 - **ports:** `"HOST:CONTAINER"` - Docker port format (e.g., `"9080:80"` maps host 9080 → container 80)
-- **ts-svc.port:** Always the **CONTAINER** port (the RIGHT side of the ports mapping)
-- The autopilot automatically detects which HOST port it's published to
+- **docktail.service.port:** Always the **CONTAINER** port (the RIGHT side of the ports mapping)
+- DockTail automatically detects which HOST port it's published to
 
-**ts-svc-autopilot handles the rest:**
+**DockTail handles the rest:**
 - Detects container starts/stops via Docker events
 - Detects published host ports
 - Generates Tailscale service configurations (proxying to localhost)
@@ -90,7 +92,7 @@ services:
 │                     Docker Host                          │
 │                                                          │
 │  ┌──────────────────┐         ┌──────────────────┐     │
-│  │  ts-svc-autopilot│────────▶│ Tailscale Daemon │     │
+│  │     DockTail     │────────▶│ Tailscale Daemon │     │
 │  │   (Container)    │  CLI    │   (Host Process) │     │
 │  └────────┬─────────┘         └──────────────────┘     │
 │           │                                              │
@@ -121,11 +123,11 @@ Monitors Docker events API for container lifecycle events (start, stop, die, res
 
 ### 2. Label Parsing
 Extracts Tailscale service configuration from container labels:
-- `ts-svc.enable`: Enable autopilot for this container
-- `ts-svc.name`: Service name (becomes `svc:name`)
-- `ts-svc.port`: Internal container port
-- `ts-svc.service-port`: External port to expose on Tailscale (default: 80)
-- `ts-svc.protocol`: Protocol (default: http) - options: `http`, `https`, `tcp`, `tls-terminated-tcp`
+- `docktail.service.enable`: Enable DockTail for this container
+- `docktail.service.name`: Service name (becomes `svc:name`)
+- `docktail.service.port`: Internal container port
+- `docktail.service.service-port`: External port to expose on Tailscale (default: 80)
+- `docktail.service.protocol`: Protocol (default: http) - options: `http`, `https`, `tcp`, `tls-terminated-tcp`
 
 ### 3. Port Binding Detection
 Queries Docker API for container's published port mappings to the host.
@@ -155,8 +157,8 @@ tailscale serve advertise svc:web
 ```
 
 ### 6. Stateless Operation
-On startup and at regular intervals, autopilot:
-1. Queries Docker for all running containers with `ts-svc.enable=true`
+On startup and at regular intervals, DockTail:
+1. Queries Docker for all running containers with `docktail.service.enable=true`
 2. Reads current Tailscale service configuration via `tailscale serve get-config --all`
 3. Reconciles differences and applies necessary changes
 4. No persistent state storage required - truth comes from Docker API
@@ -190,9 +192,9 @@ This allows devices tagged `tag:homelab` to automatically advertise services tag
 version: '3.8'
 
 services:
-  ts-svc-autopilot:
-    image: ghcr.io/yourusername/ts-svc-autopilot:latest
-    container_name: ts-svc-autopilot
+  docktail:
+    image: ghcr.io/yourusername/docktail:latest
+    container_name: docktail
     restart: unless-stopped
     volumes:
       # Docker socket for container monitoring
@@ -211,11 +213,11 @@ services:
     ports:
       - "8080:80"  # HOST:CONTAINER - Publish container port 80 to host port 8080
     labels:
-      - "ts-svc.enable=true"
-      - "ts-svc.name=web"
-      - "ts-svc.port=80"           # CONTAINER port (RIGHT side: "8080:80")
-      - "ts-svc.service-port=443"  # Port on Tailscale (default: 80)
-      - "ts-svc.protocol=https"    # Protocol (default: http)
+      - "docktail.service.enable=true"
+      - "docktail.service.name=web"
+      - "docktail.service.port=80"           # CONTAINER port (RIGHT side: "8080:80")
+      - "docktail.service.service-port=443"  # Port on Tailscale (default: 80)
+      - "docktail.service.protocol=https"    # Protocol (default: http)
 
   # Another example - database
   postgres:
@@ -225,11 +227,11 @@ services:
     environment:
       POSTGRES_PASSWORD: secret
     labels:
-      - "ts-svc.enable=true"
-      - "ts-svc.name=db"
-      - "ts-svc.port=5432"          # CONTAINER port (RIGHT side: "5432:5432")
-      - "ts-svc.service-port=5432"  # Port on Tailscale (default: 80)
-      - "ts-svc.protocol=tcp"       # Protocol (default: http)
+      - "docktail.service.enable=true"
+      - "docktail.service.name=db"
+      - "docktail.service.port=5432"          # CONTAINER port (RIGHT side: "5432:5432")
+      - "docktail.service.service-port=5432"  # Port on Tailscale (default: 80)
+      - "docktail.service.protocol=tcp"       # Protocol (default: http)
 ```
 
 ### Running the Containers
@@ -238,8 +240,8 @@ services:
 # Start everything
 docker compose up -d
 
-# Check autopilot logs
-docker logs -f ts-svc-autopilot
+# Check DockTail logs
+docker logs -f docktail
 
 # Verify services are advertised
 tailscale serve status --json
@@ -253,17 +255,17 @@ psql postgresql://user@db.your-tailnet.ts.net:5432/database
 
 | Label | Required | Default | Description | Example |
 |-------|----------|---------|-------------|---------|
-| `ts-svc.enable` | Yes | - | Enable autopilot for container | `true` |
-| `ts-svc.name` | Yes | - | Service name (alphanumeric, hyphens) | `web`, `api-v2` |
-| `ts-svc.port` | Yes | - | **CONTAINER** port (RIGHT side of `ports:`) | `80`, `3000` |
-| `ts-svc.service-port` | No | `80` | Port exposed on Tailscale | `443`, `8080` |
-| `ts-svc.protocol` | No | `http` | Protocol type | `http`, `https`, `tcp` |
+| `docktail.service.enable` | Yes | - | Enable DockTail for container | `true` |
+| `docktail.service.name` | Yes | - | Service name (alphanumeric, hyphens) | `web`, `api-v2` |
+| `docktail.service.port` | Yes | - | **CONTAINER** port (RIGHT side of `ports:`) | `80`, `3000` |
+| `docktail.service.service-port` | No | `80` | Port exposed on Tailscale | `443`, `8080` |
+| `docktail.service.protocol` | No | `http` | Protocol type | `http`, `https`, `tcp` |
 
 **CRITICAL REQUIREMENTS:**
-1. Container port in `ts-svc.port` **MUST** be published via `ports:` in docker-compose.yaml
-2. `ts-svc.port` is ALWAYS the **CONTAINER** port (RIGHT side of `"HOST:CONTAINER"`)
-3. Example: If `ports: "9080:80"`, then `ts-svc.port=80` (not 9080)
-4. Autopilot auto-detects the HOST port and proxies `localhost:9080` → Tailscale
+1. Container port in `docktail.service.port` **MUST** be published via `ports:` in docker-compose.yaml
+2. `docktail.service.port` is ALWAYS the **CONTAINER** port (RIGHT side of `"HOST:CONTAINER"`)
+3. Example: If `ports: "9080:80"`, then `docktail.service.port=80` (not 9080)
+4. DockTail auto-detects the HOST port and proxies `localhost:9080` → Tailscale
 
 **Supported protocols:**
 - `http`: Layer 7 HTTP forwarding
@@ -301,7 +303,7 @@ type ServiceManager struct {
 
 // Reconciles by querying current state
 func (sm *ServiceManager) Reconcile() error {
-    // Query Docker for all containers with ts-svc.enable=true
+    // Query Docker for all containers with docktail.service.enable=true
     // Query Tailscale for current config
     // Apply differences
 }
@@ -329,7 +331,7 @@ func buildServiceConfig(containers []*Container) *TailscaleServiceConfig {
 ### State Reconciliation
 
 Periodic reconciliation loop (every 60s by default):
-1. Query all running containers with `ts-svc.enable=true`
+1. Query all running containers with `docktail.service.enable=true`
 2. Query current Tailscale service configuration
 3. Calculate diff (containers added/removed/changed)
 4. Apply only necessary changes (drain → clear → configure → advertise)
@@ -359,11 +361,11 @@ services:
     ports:
       - "8080:3000"  # HOST:CONTAINER - Host port 8080 → Container port 3000
     labels:
-      - "ts-svc.enable=true"
-      - "ts-svc.name=app"
-      - "ts-svc.port=3000"         # CONTAINER port (RIGHT side: "8080:3000")
-      - "ts-svc.service-port=443"  # Tailscale exposes on port 443 (default: 80)
-      - "ts-svc.protocol=https"    # Protocol (default: http)
+      - "docktail.service.enable=true"
+      - "docktail.service.name=app"
+      - "docktail.service.port=3000"         # CONTAINER port (RIGHT side: "8080:3000")
+      - "docktail.service.service-port=443"  # Tailscale exposes on port 443 (default: 80)
+      - "docktail.service.protocol=https"    # Protocol (default: http)
 # Result: Tailscale (443) → localhost:8080 → Container (3000)
 ```
 
@@ -375,11 +377,11 @@ services:
     ports:
       - "5432:5432"  # HOST:CONTAINER - Same port 5432 on both sides
     labels:
-      - "ts-svc.enable=true"
-      - "ts-svc.name=database"
-      - "ts-svc.port=5432"          # CONTAINER port (RIGHT side: "5432:5432")
-      - "ts-svc.service-port=5432"  # Tailscale exposes on port 5432 (default: 80)
-      - "ts-svc.protocol=tcp"       # Protocol (default: http)
+      - "docktail.service.enable=true"
+      - "docktail.service.name=database"
+      - "docktail.service.port=5432"          # CONTAINER port (RIGHT side: "5432:5432")
+      - "docktail.service.service-port=5432"  # Tailscale exposes on port 5432 (default: 80)
+      - "docktail.service.protocol=tcp"       # Protocol (default: http)
 # Result: Tailscale (5432) → localhost:5432 → Container (5432)
 ```
 
@@ -391,12 +393,12 @@ services:
   web-01:
     image: nginx
     labels:
-      - "ts-svc.name=web"  # Same name
+      - "docktail.service.name=web"  # Same name
 
   web-02:
     image: nginx
     labels:
-      - "ts-svc.name=web"  # Same name
+      - "docktail.service.name=web"  # Same name
 ```
 
 Tailscale automatically load balances across available hosts.

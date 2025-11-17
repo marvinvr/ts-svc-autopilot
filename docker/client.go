@@ -12,7 +12,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/rs/zerolog/log"
 
-	apptypes "github.com/marvinvr/ts-svc-autopilot/types"
+	apptypes "github.com/marvinvr/docktail/types"
 )
 
 // Client wraps the Docker client with our business logic
@@ -50,7 +50,7 @@ func (c *Client) WatchEvents(ctx context.Context) (<-chan events.Message, <-chan
 	return eventsChan, errChan
 }
 
-// GetEnabledContainers returns all running containers with ts-svc.enable=true
+// GetEnabledContainers returns all running containers with docktail.service.enable=true
 func (c *Client) GetEnabledContainers(ctx context.Context) ([]*apptypes.ContainerService, error) {
 	containers, err := c.cli.ContainerList(ctx, container.ListOptions{
 		Filters: filters.NewArgs(
@@ -181,7 +181,7 @@ func (c *Client) parseContainer(ctx context.Context, containerID string, labels 
 			"container port %s is NOT published to host. "+
 				"Tailscale serve requires localhost proxies. "+
 				"Fix: Add 'ports: [\"%s:%s\"]' to container '%s' in docker-compose.yaml. "+
-				"Format is HOST:CONTAINER where %s is the CONTAINER port (ts-svc.port=%s). "+
+				"Format is HOST:CONTAINER where %s is the CONTAINER port (docktail.service.port=%s). "+
 				"Available published ports: %v",
 			targetPort, targetPort, targetPort, containerName, targetPort, targetPort, availablePorts,
 		)

@@ -10,16 +10,16 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"github.com/marvinvr/ts-svc-autopilot/docker"
-	"github.com/marvinvr/ts-svc-autopilot/reconciler"
-	"github.com/marvinvr/ts-svc-autopilot/tailscale"
+	"github.com/marvinvr/docktail/docker"
+	"github.com/marvinvr/docktail/reconciler"
+	"github.com/marvinvr/docktail/tailscale"
 )
 
 func main() {
 	// Setup logging
 	setupLogging()
 
-	log.Info().Msg("Starting ts-svc-autopilot")
+	log.Info().Msg("Starting DockTail")
 
 	// Get configuration from environment
 	reconcileInterval := getEnvDuration("RECONCILE_INTERVAL", 60*time.Second)
@@ -66,7 +66,7 @@ func main() {
 		log.Fatal().Err(err).Msg("Reconciler failed")
 	}
 
-	log.Info().Msg("ts-svc-autopilot stopped")
+	log.Info().Msg("DockTail stopped")
 }
 
 func setupLogging() {
