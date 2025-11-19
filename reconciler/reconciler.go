@@ -9,7 +9,6 @@ import (
 
 	"github.com/marvinvr/docktail/docker"
 	"github.com/marvinvr/docktail/tailscale"
-	apptypes "github.com/marvinvr/docktail/types"
 )
 
 // Reconciler manages the reconciliation loop
@@ -100,90 +99,14 @@ func (r *Reconciler) Reconcile(ctx context.Context) error {
 			Msg("Container configuration")
 	}
 
-	// Build desired Tailscale configuration from ALL enabled containers
-	desiredConfig := r.tailscaleClient.BuildConfig(containers)
-
-	// Log the desired services
-	var desiredServices []string
-	for svc := range desiredConfig.Services {
-		desiredServices = append(desiredServices, svc)
-	}
-	log.Info().
-		Strs("desired_services", desiredServices).
-		Int("service_count", len(desiredConfig.Services)).
-		Msg("Built desired configuration from containers")
-
-	// Get current Tailscale configuration
-	currentConfig, err := r.tailscaleClient.GetCurrentConfig(ctx)
-	if err != nil {
-		log.Warn().Err(err).Msg("Failed to get current config, will apply full config")
-		currentConfig = &apptypes.TailscaleServiceConfig{
-			Version:  "0.0.1",
-			Services: make(map[string]apptypes.ServiceDefinition),
-		}
-	}
-
-	// Log current services
-	var currentServices []string
-	for svc := range currentConfig.Services {
-		currentServices = append(currentServices, svc)
-	}
-	log.Info().
-		Strs("current_services", currentServices).
-		Int("service_count", len(currentConfig.Services)).
-		Msg("Retrieved current configuration")
-
-	// Check if configuration needs to be updated
-	if configsEqual(currentConfig, desiredConfig) {
-		log.Info().
-			Strs("services", desiredServices).
-			Msg("Configuration is up to date, no changes needed")
-		return nil
-	}
-
-	log.Info().
-		Strs("desired_services", desiredServices).
-		Strs("current_services", currentServices).
-		Msg("Configuration changed, applying full configuration for all services")
-
-	// Apply the complete desired configuration using --all flag
-	// This replaces the entire Tailscale serve configuration
-	if err := r.tailscaleClient.ApplyConfig(ctx, desiredConfig); err != nil {
-		return fmt.Errorf("failed to apply config: %w", err)
-	}
-
-	// Advertise all services in the configuration
-	if err := r.tailscaleClient.AdvertiseServices(ctx, desiredConfig); err != nil {
-		return fmt.Errorf("failed to advertise services: %w", err)
+	// Reconcile services using CLI commands
+	// This will compare current state with desired state and make incremental changes
+	// When containers stop, their services are gracefully drained (existing connections complete)
+	// then cleared (configuration removed) for security
+	if err := r.tailscaleClient.ReconcileServices(ctx, containers); err != nil {
+		return fmt.Errorf("failed to reconcile services: %w", err)
 	}
 
 	log.Info().Msg("Reconciliation completed successfully")
 	return nil
-}
-
-// configsEqual compares two Tailscale configurations
-func configsEqual(a, b *apptypes.TailscaleServiceConfig) bool {
-	if len(a.Services) != len(b.Services) {
-		return false
-	}
-
-	for serviceName, aService := range a.Services {
-		bService, ok := b.Services[serviceName]
-		if !ok {
-			return false
-		}
-
-		if len(aService.Endpoints) != len(bService.Endpoints) {
-			return false
-		}
-
-		for endpoint, aTarget := range aService.Endpoints {
-			bTarget, ok := bService.Endpoints[endpoint]
-			if !ok || aTarget != bTarget {
-				return false
-			}
-		}
-	}
-
-	return true
 }

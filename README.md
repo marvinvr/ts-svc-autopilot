@@ -36,12 +36,11 @@ Automatically expose Docker containers as Tailscale Services using label-based c
 
 ## Features
 
-- [x] Automatically discover and advertise Docker containers as Tailscale services
-- [x] Supports HTTP, HTTPS and TCP protocols for running services
-- [x] Zero-config service mesh for your dockerized services
-- [x] Automatically clean up Tailscale service configurations on container stop
+- [x] Automatically discover and advertise Docker containers as Tailscale Services
+- [x] HTTP, HTTPS and TCP protocols for running services
+- [x] Support Tailscale HTTPS (auto TLS certificate)
+- [x] Automatically drain Tailscale service configurations on container stop
 - [x] Runs entirely in a **stateless Docker container**
-- [ ] Support Tailscale HTTPS
 - [ ] Add Tailscale Funnel Support
 - [ ] More? => Create an Issue :)
 
@@ -129,7 +128,23 @@ Access from any device in your tailnet:
 curl http://myapp.your-tailnet.ts.net
 ```
 
-**With optional labels:**
+**With HTTPS (auto TLS cert from Tailscale):**
+```yaml
+services:
+  myapp:
+    image: nginx:latest
+    ports:
+      - "8080:80"
+    labels:
+      - "docktail.service.enable=true"
+      - "docktail.service.name=myapp"
+      - "docktail.service.port=80"                   # Container port
+      - "docktail.service.service-port=443"          # Tailscale listens on 443
+      - "docktail.service.service-protocol=https"    # Tailscale serves HTTPS (auto TLS!)
+      - "docktail.service.protocol=http"             # Container speaks HTTP
+```
+
+**Smart defaults (minimal config):**
 ```yaml
 services:
   myapp:
@@ -140,8 +155,9 @@ services:
       - "docktail.service.enable=true"
       - "docktail.service.name=myapp"
       - "docktail.service.port=80"
-      - "docktail.service.service-port=443"  # Port on Tailscale (default: 80)
-      - "docktail.service.protocol=https"    # Protocol (default: http)
+      - "docktail.service.service-port=443"  # Port 443 → auto-defaults to HTTPS!
+      # service-protocol auto-defaults to "https" (based on port 443)
+      # protocol auto-defaults to "http" (TLS termination at Tailscale)
 ```
 
 **Port Mapping Rules:**
@@ -156,8 +172,13 @@ services:
 | `docktail.service.enable` | Yes | - | Enable DockTail for container |
 | `docktail.service.name` | Yes | - | Service name (e.g., `web`, `api-v2`) |
 | `docktail.service.port` | Yes | - | **CONTAINER** port (RIGHT side of `ports:`) |
-| `docktail.service.service-port` | No | `80` | Port exposed on Tailscale |
-| `docktail.service.protocol` | No | `http` | Protocol: `http`, `https`, `tcp`, `tls-terminated-tcp` |
+| `docktail.service.service-port` | No | `80` | Port Tailscale listens on |
+| `docktail.service.service-protocol` | No | Smart* | Protocol Tailscale uses: `http`, `https`, `tcp` |
+| `docktail.service.protocol` | No | Smart** | Protocol container speaks: `http`, `https`, `tcp`, `tls-terminated-tcp` |
+
+**Smart Defaults:**
+- *`service-protocol`: Defaults to `https` if `service-port=443`, otherwise `http`
+- **`protocol`: Defaults to `http` if `service-protocol=https` (TLS termination), otherwise matches `service-protocol`
 
 **Critical:** If `ports: "9080:80"`, then `docktail.service.port=80` (container port, NOT 9080)
 
@@ -221,7 +242,7 @@ services:
       - "docktail.service.protocol=tcp"
 ```
 
-### API (Different Ports)
+### API with HTTPS (Auto TLS Certificate)
 
 ```yaml
 services:
@@ -232,9 +253,15 @@ services:
     labels:
       - "docktail.service.enable=true"
       - "docktail.service.name=api"
-      - "docktail.service.port=3000"
-      - "docktail.service.service-port=443"
-      - "docktail.service.protocol=https"
+      - "docktail.service.port=3000"            # Container listens on 3000
+      - "docktail.service.service-port=443"     # Tailscale listens on 443 (HTTPS)
+      # service-protocol auto-defaults to "https" (port 443)
+      # protocol auto-defaults to "http" (Tailscale terminates TLS)
+```
+
+Access with automatic TLS:
+```bash
+curl https://api.your-tailnet.ts.net  # TLS cert auto-provisioned!
 ```
 
 ## Building from Source

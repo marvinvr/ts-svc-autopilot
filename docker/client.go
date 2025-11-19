@@ -98,24 +98,87 @@ func (c *Client) parseContainer(ctx context.Context, containerID string, labels 
 		return nil, fmt.Errorf("missing required label: %s", apptypes.LabelTarget)
 	}
 
-	// Optional labels with defaults
+	// Optional labels with smart defaults - these work in both directions:
+	// - If service-port=443 and service-protocol unset → defaults to HTTPS
+	// - If service-protocol=https and service-port unset → defaults to 443
 	port := labels[apptypes.LabelPort]
-	if port == "" {
+	serviceProtocol := labels[apptypes.LabelServiceProtocol]
+
+	// Smart defaults based on both fields
+	if port == "" && serviceProtocol == "" {
+		// Both unset: default to HTTP on port 80
 		port = "80"
+		serviceProtocol = "http"
+		log.Debug().
+			Str("container", containerID[:12]).
+			Msg("No port or protocol specified, defaulting to HTTP on port 80")
+	} else if port == "" && serviceProtocol != "" {
+		// Protocol set, port unset: default port based on protocol
+		switch serviceProtocol {
+		case "https":
+			port = "443"
+		case "http":
+			port = "80"
+		default:
+			port = "80"
+		}
+		log.Debug().
+			Str("container", containerID[:12]).
+			Str("service_protocol", serviceProtocol).
+			Str("defaulted_service_port", port).
+			Msg("Service port not specified, defaulted based on protocol")
+	} else if port != "" && serviceProtocol == "" {
+		// Port set, protocol unset: default protocol based on port
+		switch port {
+		case "443":
+			serviceProtocol = "https"
+		case "80":
+			serviceProtocol = "http"
+		default:
+			serviceProtocol = "http"
+		}
+		log.Debug().
+			Str("container", containerID[:12]).
+			Str("service_port", port).
+			Str("defaulted_service_protocol", serviceProtocol).
+			Msg("Service protocol not specified, defaulted based on port")
 	}
+	// else: both are set, use as-is
 
-	protocol := labels[apptypes.LabelTargetProtocol]
-	if protocol == "" {
-		protocol = "http"
-	}
-
-	// Validate protocol
+	// Validate service protocol
 	validProtocols := map[string]bool{
 		"http":                true,
 		"https":               true,
 		"tcp":                 true,
 		"tls-terminated-tcp":  true,
 	}
+	if !validProtocols[serviceProtocol] {
+		return nil, fmt.Errorf("invalid service-protocol: %s (must be http, https, tcp, or tls-terminated-tcp)", serviceProtocol)
+	}
+
+	// Smart defaults for target/container protocol based on service protocol
+	protocol := labels[apptypes.LabelTargetProtocol]
+	if protocol == "" {
+		// Default based on service protocol
+		switch serviceProtocol {
+		case "https":
+			// HTTPS services typically proxy to HTTP backends (TLS termination)
+			protocol = "http"
+		case "http":
+			protocol = "http"
+		case "tcp", "tls-terminated-tcp":
+			protocol = "tcp"
+		default:
+			protocol = "http"
+		}
+		log.Debug().
+			Str("container", containerID[:12]).
+			Str("service_protocol", serviceProtocol).
+			Str("defaulted_target_protocol", protocol).
+			Msg("Target protocol not specified, defaulted based on service protocol")
+	}
+
+	// Validate target protocol
 	if !validProtocols[protocol] {
 		return nil, fmt.Errorf("invalid protocol: %s (must be http, https, tcp, or tls-terminated-tcp)", protocol)
 	}
@@ -195,13 +258,14 @@ func (c *Client) parseContainer(ctx context.Context, containerID string, labels 
 		Msg("Detected port binding for Tailscale proxy")
 
 	return &apptypes.ContainerService{
-		ContainerID:   containerID[:12],
-		ContainerName: containerName,
-		ServiceName:   serviceName,
-		Port:          port,
-		TargetPort:    hostPort, // Use the published host port
-		Protocol:      protocol,
-		IPAddress:     "localhost", // Tailscale serve requires localhost
-		Network:       "host",      // Using host-published ports
+		ContainerID:     containerID[:12],
+		ContainerName:   containerName,
+		ServiceName:     serviceName,
+		Port:            port,
+		TargetPort:      hostPort, // Use the published host port
+		ServiceProtocol: serviceProtocol,
+		Protocol:        protocol,
+		IPAddress:       "localhost", // Tailscale serve requires localhost
+		Network:         "host",      // Using host-published ports
 	}, nil
 }
