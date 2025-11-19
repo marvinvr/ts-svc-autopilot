@@ -2,9 +2,9 @@ version: '3.8'
 
 services:
   # DockTail service
-  docktail:
+  dev-docktail:
     build: .
-    container_name: docktail
+    container_name: dev-docktail
     restart: unless-stopped
     volumes:
       # Docker socket for container monitoring
@@ -27,7 +27,7 @@ services:
     labels:
       - "docktail.service.enable=true"
       - "docktail.service.name=test-web1"
-      - "docktail.service.service-port=80"  # Port to expose on Tailscale
+      - "docktail.service.service-port=443"  # Port to expose on Tailscale
       - "docktail.service.port=80"          # CONTAINER port (RIGHT side of "9080:80" above)
       - "docktail.service.protocol=http"    # http (not https) - nginx listens on plain HTTP
 
