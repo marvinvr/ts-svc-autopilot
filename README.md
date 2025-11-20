@@ -51,12 +51,12 @@ Automatically expose Docker containers as Tailscale Services using label-based c
 
 ### Admin Console Setup
 
-Before installing the autopilot, configure your Tailscale admin console at https://login.tailscale.com/admin/services:
+Before installing the DockTail, configure your Tailscale admin console at https://login.tailscale.com/admin/services:
 
 1. **Create service definitions** (Services → Add service):
    - Create a service for each application you want to expose
    - Example: Service name `web`, `api`, `db`, etc.
-   - Note: The autopilot will automatically configure and advertise these services
+   - Note: DockTail will automatically configure and advertise these services
 
 2. **(Optional) Configure service tags**:
    - Navigate to Access Controls

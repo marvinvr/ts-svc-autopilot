@@ -82,7 +82,7 @@ func (c *Client) GetEnabledContainers(ctx context.Context) ([]*apptypes.Containe
 
 // parseContainer extracts service configuration from container labels
 func (c *Client) parseContainer(ctx context.Context, containerID string, labels map[string]string) (*apptypes.ContainerService, error) {
-	// Check if autopilot is enabled
+	// Check if docktail is enabled
 	if labels[apptypes.LabelEnable] != "true" {
 		return nil, nil
 	}

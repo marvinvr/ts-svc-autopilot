@@ -1,5 +1,5 @@
 # Binaries
-ts-svc-autopilot
+docktail
 *.exe
 *.dll
 *.so
